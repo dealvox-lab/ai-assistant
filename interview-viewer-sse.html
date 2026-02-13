@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interview Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:      #080c14;
+      --surface: #0d1420;
+      --border:  #1a2540;
+      --accent:  #00e5ff;
+      --purple:  #7c3aed;
+      --green:   #00ff9d;
+      --red:     #ff3864;
+      --yellow:  #fbbf24;
+      --text:    #cdd6f4;
+      --muted:   #4a5580;
+      --mono:    'IBM Plex Mono', monospace;
+      --sans:    'Syne', sans-serif;
+      --body:    'Inter', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--body);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      height: 52px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(8,12,20,0.97);
+      flex-shrink: 0;
+      gap: 16px;
+    }
+
+    .logo {
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+    .logo span { color: var(--text); }
+
+    .config-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .config-row label {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .config-row input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 5px 10px;
+      transition: border-color 0.2s;
+    }
+    .config-row input:focus { outline: none; border-color: var(--accent); }
+    #workerUrl { flex: 1; min-width: 0; }
+    #sessionInput { width: 180px; }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--red);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .dot.connecting { background: var(--yellow); animation: blink 0.8s infinite; }
+    .dot.live { background: var(--green); box-shadow: 0 0 8px var(--green); animation: blink 1.4s infinite; }
+
+    @keyframes blink {
+      0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+    }
+
+    .btn {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-start { border-color: var(--green); color: var(--green); background: rgba(0,255,157,0.05); }
+    .btn-start:hover { background: rgba(0,255,157,0.12); }
+    .btn-stop { border-color: var(--red); color: var(--red); background: rgba(255,56,100,0.05); display: none; }
+    .btn-stop:hover { background: rgba(255,56,100,0.12); }
+    .btn-clear { border-color: var(--border); color: var(--muted); background: transparent; }
+    .btn-clear:hover { border-color: var(--muted); color: var(--text); }
+
+    /* ── PANELS ── */
+    .main {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      overflow: hidden;
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-right: 1px solid var(--border);
+    }
+    .panel:last-child { border-right: none; }
+
+    .panel-header {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .p-icon {
+      width: 18px; height: 18px;
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+    }
+    .p-icon.t { background: rgba(0,229,255,0.1); color: var(--accent); }
+    .p-icon.a { background: rgba(124,58,237,0.1); color: #a78bfa; }
+
+    .panel-stats {
+      display: flex;
+      gap: 14px;
+    }
+    .mini-stat {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .mini-stat b { color: var(--text); font-weight: 500; }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      scroll-behavior: smooth;
+    }
+    .panel-body::-webkit-scrollbar { width: 3px; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── EMPTY STATE ── */
+    .empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 8px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .empty-icon { font-size: 26px; opacity: 0.25; }
+    .empty p { font-family: var(--mono); font-size: 11px; line-height: 1.7; }
+
+    /* ── TRANSCRIPT CHUNK ── */
+    .chunk {
+      margin-bottom: 10px;
+      padding: 11px 13px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      animation: slideIn 0.2s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-6px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .chunk-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .chunk-time {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .conf {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+    .conf.hi { background: rgba(0,255,157,0.07); color: var(--green); border: 1px solid rgba(0,255,157,0.15); }
+    .conf.lo { background: rgba(255,56,100,0.07); color: var(--red); border: 1px solid rgba(255,56,100,0.15); }
+
+    .chunk-text {
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+
+    /* ── ANSWER CARD ── */
+    .answer-card {
+      margin-bottom: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      animation: slideIn 0.25s ease;
+    }
+
+    .answer-q {
+      padding: 10px 13px;
+      background: rgba(124,58,237,0.07);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #a78bfa;
+      display: flex;
+      gap: 7px;
+      align-items: flex-start;
+    }
+    .answer-q::before {
+      content: 'Q';
+      width: 17px; height: 17px;
+      background: rgba(124,58,237,0.18);
+      border-radius: 3px;
+      display: inline-flex;
+      align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 700;
+      flex-shrink: 0; margin-top: 1px;
+    }
+
+    .answer-body { padding: 13px; }
+
+    .answer-section { margin-bottom: 11px; }
+    .answer-section:last-child { margin-bottom: 0; }
+
+    .sec-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .raw-answer {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .raw-line {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text);
+      padding: 2px 0;
+    }
+
+    .raw-line:empty { display: none; }
+
+    .raw-line b {
+      color: #c4b5fd;
+      font-weight: 600;
+    }
+
+    .raw-line code {
+      font-family: var(--mono);
+      font-size: 11px;
+      background: rgba(255,255,255,0.06);
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--accent);
+    }
+
+    /* Thinking */
+    .thinking {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 13px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+    .dots span {
+      display: inline-block;
+      animation: tdot 1.2s ease-in-out infinite;
+    }
+    .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes tdot {
+      0%,100% { opacity: 0.2; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(-2px); }
+    }
+
+    /* ── BOTTOM BAR ── */
+    .bottombar {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      height: 28px;
+      border-top: 1px solid var(--border);
+      background: rgba(8,12,20,0.97);
+      flex-shrink: 0;
+    }
+    .binfo {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      display: flex;
+      gap: 20px;
+    }
+    .binfo b { color: var(--text); font-weight: 400; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="logo">Interview<span>AI</span></div>
+
+    <div class="config-row">
+      <label>Worker</label>
+      <input id="workerUrl" type="text"
+        placeholder="https://interview-sse.YOUR-SUBDOMAIN.workers.dev">
+      <label>Session</label>
+      <input id="sessionInput" type="text"
+        placeholder="session_1770969633390">
+    </div>
+
+    <div class="topbar-right">
+      <div class="indicator">
+        <div class="dot" id="dot"></div>
+        <span id="statusText">offline</span>
+      </div>
+      <button class="btn btn-start" id="startBtn" onclick="connect()">▶ Connect</button>
+      <button class="btn btn-stop"  id="stopBtn"  onclick="disconnect()">■ Disconnect</button>
+      <button class="btn btn-clear" onclick="clearAll()">Clear</button>
+    </div>
+  </div>
+
+  <!-- PANELS -->
+  <div class="main">
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="p-icon t">◈</div>
+          Live Transcript
+        </div>
+        <div class="panel-stats">
+          <div class="mini-stat">Chunks <b id="chunkCount">0</b></div>
+          <div class="mini-stat">Words <b id="wordCount">0</b></div>
+        </div>
+      </div>
+      <div class="panel-body" id="transcriptPanel">
+        <div class="empty" id="emptyT">
+          <div class="empty-icon">◈</div>
+          <p>No transcript yet.<br>Connect and start speaking.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="p-icon a">✦</div>
+          Model Answers
+        </div>
+        <div class="panel-stats">
+          <div class="mini-stat">Questions <b id="answerCount">0</b></div>
+        </div>
+      </div>
+      <div class="panel-body" id="answersPanel">
+        <div class="empty" id="emptyA">
+          <div class="empty-icon">✦</div>
+          <p>Waiting for questions...<br>Answers appear here in real-time.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottombar">
+    <div class="binfo">
+      <span>Last event: <b id="lastEvent">—</b></span>
+      <span>Session: <b id="sessionDisplay">—</b></span>
+      <span>Storage: <b>Supabase</b></span>
+      <span>Transport: <b>SSE</b></span>
+    </div>
+    <div class="binfo">InterviewAI v2.0</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let evtSource = null
+    let chunkCount = 0
+    let wordCount  = 0
+    let answerCount = 0
+    let autoScrollT = true
+    let autoScrollA = true
+
+    // ── Persist config ───────────────────────────────
+    const saved = JSON.parse(localStorage.getItem('ia_config') || '{}')
+    if (saved.workerUrl) document.getElementById('workerUrl').value = saved.workerUrl
+    if (saved.sessionId) document.getElementById('sessionInput').value = saved.sessionId
+
+    function saveConfig() {
+      localStorage.setItem('ia_config', JSON.stringify({
+        workerUrl: document.getElementById('workerUrl').value.trim(),
+        sessionId: document.getElementById('sessionInput').value.trim()
+      }))
+    }
+
+    // ── SSE Connection ───────────────────────────────
+    function connect() {
+      const workerUrl = document.getElementById('workerUrl').value.trim()
+      const sessionId = document.getElementById('sessionInput').value.trim()
+
+      if (!workerUrl) { toast('Enter your Cloudflare Worker URL'); return; }
+      if (!sessionId) { toast('Enter a Session ID'); return; }
+
+      saveConfig()
+      disconnect() // close any existing
+
+      setStatus('connecting')
+      document.getElementById('sessionDisplay').textContent = sessionId.slice(-12)
+
+      const url = `${workerUrl}/stream?session=${encodeURIComponent(sessionId)}`
+      evtSource = new EventSource(url)
+
+      // Connected
+      evtSource.addEventListener('connected', () => {
+        setStatus('live')
+        toast('✓ Stream connected')
+      })
+
+      // History - array of interview_events rows
+      evtSource.addEventListener('history', (e) => {
+        const rows = JSON.parse(e.data)
+        rows.forEach(row => addRow(row, true))
+        if (rows.length > 0) toast(`↑ Loaded ${rows.length} past events`)
+      })
+
+      // Single new row from interview_events
+      evtSource.addEventListener('event', (e) => {
+        const row = JSON.parse(e.data)
+        addRow(row, false)
+        document.getElementById('lastEvent').textContent = new Date().toLocaleTimeString()
+      })
+
+      // Stream closed
+      evtSource.addEventListener('closed', () => {
+        setStatus('offline')
+        toast('Stream closed')
+      })
+
+      evtSource.onerror = () => {
+        setStatus('offline')
+        toast('Connection lost — retrying...')
+      }
+
+      // Show UI
+      document.getElementById('startBtn').style.display = 'none'
+      document.getElementById('stopBtn').style.display = 'inline-block'
+    }
+
+    function disconnect() {
+      if (evtSource) {
+        evtSource.close()
+        evtSource = null
+      }
+      setStatus('offline')
+      document.getElementById('startBtn').style.display = 'inline-block'
+      document.getElementById('stopBtn').style.display = 'none'
+    }
+
+    function setStatus(s) {
+      const dot  = document.getElementById('dot')
+      const text = document.getElementById('statusText')
+      dot.className = 'dot' + (s === 'live' ? ' live' : s === 'connecting' ? ' connecting' : '')
+      text.textContent = s
+    }
+
+    // ── Transcript ───────────────────────────────────
+    function addTranscript(t, isHistory) {
+      document.getElementById('emptyT')?.remove()
+
+      chunkCount++
+      wordCount += (t.transcript || '').trim().split(/\s+/).filter(Boolean).length
+      document.getElementById('chunkCount').textContent = chunkCount
+      document.getElementById('wordCount').textContent  = wordCount
+
+      const conf    = t.confidence ? Math.round(t.confidence * 100) : null
+      const timeStr = new Date(t.timestamp || Date.now()).toLocaleTimeString()
+
+      const el = document.createElement('div')
+      el.className = 'chunk'
+      if (isHistory) el.style.opacity = '0.65'
+      el.innerHTML = `
+        <div class="chunk-meta">
+          <span class="chunk-time">${timeStr}</span>
+          ${conf !== null ? `<span class="conf ${conf >= 75 ? 'hi' : 'lo'}">${conf}%</span>` : ''}
+          ${isHistory ? '<span class="conf lo">history</span>' : ''}
+        </div>
+        <div class="chunk-text">${esc(t.transcript)}</div>
+      `
+      document.getElementById('transcriptPanel').appendChild(el)
+      if (autoScrollT && !isHistory) scrollTo('transcriptPanel')
+
+      // Detect question → show thinking in answers panel
+      if (!isHistory && isQuestion(t.transcript)) {
+        showThinking(t.transcript)
+      }
+    }
+
+    // ── Answers ──────────────────────────────────────
+    function showThinking(question) {
+      document.getElementById('emptyA')?.remove()
+      document.getElementById('thinking-indicator')?.remove()
+
+      const el = document.createElement('div')
+      el.className = 'thinking'
+      el.id = 'thinking-indicator'
+      el.innerHTML = `
+        <span style="color:#a78bfa">✦</span>
+        "${esc(question.slice(0, 55))}${question.length > 55 ? '…' : ''}"
+        <span class="dots"><span>●</span><span>●</span><span>●</span></span>
+      `
+      document.getElementById('answersPanel').appendChild(el)
+      if (autoScrollA) scrollTo('answersPanel')
+    }
+
+    function addAnswer(a, isHistory) {
+      document.getElementById('emptyA')?.remove()
+      document.getElementById('thinking-indicator')?.remove()
+
+      answerCount++
+      document.getElementById('answerCount').textContent = answerCount
+
+      // Parse raw_llm into display lines
+      const rawText = a.raw_llm || ''
+      const lines = rawText
+        .split('\n')
+        .map(l => l
+          .replace(/^#{1,3}\s+/, '')        // remove ## headings
+          .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')  // bold
+          .replace(/`([^`]+)`/g, '<code>$1</code>') // inline code
+          .trim()
+        )
+        .filter(l => l.length > 0 && !l.startsWith('```'))
+
+      const el = document.createElement('div')
+      el.className = 'answer-card'
+      if (isHistory) el.style.opacity = '0.65'
+
+      el.innerHTML = `
+        <div class="answer-q">${esc(a.question || '')}</div>
+        <div class="answer-body">
+          <div class="answer-section">
+            <div class="sec-label">AI Coaching</div>
+            <div class="raw-answer">
+              ${lines.map(l => `<div class="raw-line">${l}</div>`).join('')}
+            </div>
+          </div>
+        </div>
+      `
+      document.getElementById('answersPanel').appendChild(el)
+      if (autoScrollA && !isHistory) scrollTo('answersPanel')
+    }
+
+    // ── Helpers ──────────────────────────────────────
+    function isQuestion(text) {
+      const t = (text || '').toLowerCase().trim()
+      return t.includes('?') ||
+        /^(tell|describe|explain|what|how|why|when|where|who|can you|could you|have you|do you)/.test(t)
+    }
+
+    function scrollTo(id) {
+      const el = document.getElementById(id)
+      el.scrollTop = el.scrollHeight
+    }
+
+    function clearAll() {
+      disconnect()
+      chunkCount = 0; wordCount = 0; answerCount = 0
+      document.getElementById('chunkCount').textContent  = '0'
+      document.getElementById('wordCount').textContent   = '0'
+      document.getElementById('answerCount').textContent = '0'
+      document.getElementById('lastEvent').textContent   = '—'
+      document.getElementById('sessionDisplay').textContent = '—'
+      document.getElementById('transcriptPanel').innerHTML = `
+        <div class="empty" id="emptyT">
+          <div class="empty-icon">◈</div>
+          <p>No transcript yet.<br>Connect and start speaking.</p>
+        </div>`
+      document.getElementById('answersPanel').innerHTML = `
+        <div class="empty" id="emptyA">
+          <div class="empty-icon">✦</div>
+          <p>Waiting for questions...<br>Answers appear here in real-time.</p>
+        </div>`
+    }
+
+    function toast(msg) {
+      const el = document.getElementById('toast')
+      el.textContent = msg
+      el.classList.add('show')
+      setTimeout(() => el.classList.remove('show'), 2500)
+    }
+
+    function esc(str) {
+      return String(str || '')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    }
+
+    // Auto-scroll detection
+    document.getElementById('transcriptPanel').addEventListener('scroll', function() {
+      autoScrollT = this.scrollTop + this.clientHeight >= this.scrollHeight - 40
+    })
+    document.getElementById('answersPanel').addEventListener('scroll', function() {
+      autoScrollA = this.scrollTop + this.clientHeight >= this.scrollHeight - 40
+    })
+  </script>
+
+</body>
+</html>

@@ -542,18 +542,24 @@
         toast('✓ Stream connected')
       })
 
-      // History - array of interview_events rows
-      evtSource.addEventListener('history', (e) => {
-        const rows = JSON.parse(e.data)
-        rows.forEach(row => addRow(row, true))
-        if (rows.length > 0) toast(`↑ Loaded ${rows.length} past events`)
+      // History done notification
+      evtSource.addEventListener('history_done', (e) => {
+        const data = JSON.parse(e.data)
+        if (data.count > 0) toast(`↑ Loaded ${data.count} past events`)
       })
 
-      // Single new row from interview_events
-      evtSource.addEventListener('event', (e) => {
-        const row = JSON.parse(e.data)
-        addRow(row, false)
-        document.getElementById('lastEvent').textContent = new Date().toLocaleTimeString()
+      // Transcript event (history + live)
+      evtSource.addEventListener('transcript', (e) => {
+        const data = JSON.parse(e.data)
+        addTranscript(data, data.isHistory || false)
+        if (!data.isHistory) document.getElementById('lastEvent').textContent = new Date().toLocaleTimeString()
+      })
+
+      // Answer event (history + live)
+      evtSource.addEventListener('answer', (e) => {
+        const data = JSON.parse(e.data)
+        addAnswer(data, data.isHistory || false)
+        if (!data.isHistory) document.getElementById('lastEvent').textContent = new Date().toLocaleTimeString()
       })
 
       // Stream closed

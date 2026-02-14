@@ -619,7 +619,7 @@
         <div class="chunk-text">${esc(t.transcript)}</div>
       `
       document.getElementById('transcriptPanel').appendChild(el)
-      if (autoScrollT && !isHistory) scrollTo('transcriptPanel')
+      if (autoScrollT) scrollTo('transcriptPanel')
 
       // Detect question → show thinking in answers panel
       if (!isHistory && isQuestion(t.transcript)) {
@@ -679,7 +679,7 @@
         </div>
       `
       document.getElementById('answersPanel').appendChild(el)
-      if (autoScrollA && !isHistory) scrollTo('answersPanel')
+      if (autoScrollA) scrollTo('answersPanel')
     }
 
     // ── Helpers ──────────────────────────────────────

@@ -1,0 +1,6 @@
+cat > cloudflare-worker/.gitignore << 'EOF'
+node_modules/
+.wrangler/
+dist/
+.dev.vars
+EOF

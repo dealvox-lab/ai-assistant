@@ -645,6 +645,10 @@
     }
 
     function addAnswer(a, isHistory) {
+      // Skip empty / near-empty answers (just dashes, bullets, etc.)
+      const cleaned = (a.raw_llm || '').replace(/[\s\-–—*•·._()\[\]`#>/\\|=+~"':;,!?{}]+/g, '')
+      if (cleaned.length <= 2) return
+
       document.getElementById('emptyA')?.remove()
       document.getElementById('thinking-indicator')?.remove()
 
